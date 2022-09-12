@@ -1,0 +1,73 @@
+type: install
+version: 1.5
+id: minio
+name: Secure Minio Cluster
+
+baseUrl: https://raw.githubusercontent.com/ikhalid08/jelastic-minio-repo/master
+logo: images/minio-logo-70x70.png
+
+categories: [ apps/file-manager ]
+description:
+  text: |
+    Minio is an object storage server, compatible with Amazon S3 cloud storage
+    service, best suited for storing unstructured data such as photos, videos, log
+    files and backups.
+  short: |
+    Automated clusterization for a reliable and cost-effective Minio storage
+    to keep your unstructured data in a cloud.
+
+settings:
+  fields:
+    - name: nodes
+      caption: Number of nodes
+      type: list
+      inputType: string
+      values:
+        1: 1 node
+        4: 4 nodes
+        8: 8 nodes
+        16: 16 nodes
+      default: 4
+      required: true
+
+globals:
+  accessKey: ${fn.password}
+  secretKey: ${fn.password}
+  port: 443
+  consolePort: 4949
+  exportPath: /export
+    
+ssl: true
+
+nodes:
+  count: ${settings.nodes}
+  cloudlets: 16
+  nodeGroup: cp
+  image: jelastic/minio:RELEASE.2022-03-22T02-05-10Z
+  password: ${globals.secretKey}
+  skipNodeEmails: true
+  validation:
+      maxCount: ${settings.nodes}
+      minCount: ${settings.nodes}
+
+onInstall:
+  - cmd[cp]: |-
+      jem passwd set -p ${globals.secretKey} -u ${globals.accessKey}
+      jem service stop
+      rm -rf /${globals.exportPath}/.minio.sys
+    user: root
+  - build-cluster
+  - restartContainers [cp]
+
+actions:
+  build-cluster:
+    script: build-cluster.js
+    params:
+      nodeGroup: cp
+      volumePath: ${globals.exportPath}
+      port: ${globals.port}
+      consolePort: ${globals.consolePort}
+
+success:
+  text: /text/success.md
+  email: /text/success.md
